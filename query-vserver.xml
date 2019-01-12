@@ -1,0 +1,36 @@
+<netapp> 
+	<vserver-get-iter>
+		<max-records>{{.MaxRecords}}</max-records>
+		<query>
+			<vserver-info>
+				<vserver-type>cluster | data</vserver-type>
+			</vserver-info>
+		</query>
+		<desired-attributes>
+			<vserver-info>
+				<vserver-name/>
+				<uuid/>
+				<root-volume/>
+				<state/>
+				<operational-state/>
+				<vserver-type/>
+				<vserver-subtype/>
+				<is-config-locked-for-changes/>
+				<is-vserver-protected/>
+				<ipspace/>
+				<is-repository-vserver/>
+				<nis-domain/>
+				<snapshot-policy/>
+				<ldap-domain/>
+				<qos-policy-group/>
+				<language/>
+				<allowed-protocols>
+				<protocol/>
+				</allowed-protocols>
+				<aggr-list><aggr-name/></aggr-list>
+				<name-mapping-switch><nmswitch/></name-mapping-switch>
+				<name-server-switch><nsswitch/></name-server-switch>
+			</vserver-info>
+		</desired-attributes>
+	</vserver-get-iter>
+</netapp>
