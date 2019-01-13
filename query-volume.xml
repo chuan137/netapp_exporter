@@ -1,7 +1,7 @@
-{{with .VFiler -}} 
-<netapp vfiler={{.}}>
+{{with .Filer}} 
+<netapp vfiler="{{.}}" version="1.7">
 {{else}}
-<netapp>
+<netapp version="1.7">
 {{end}}
     <volume-get-iter>
         <query>
