@@ -38,53 +38,50 @@ type ResVServer struct {
 	VServers      []VServer `xml:"results>attributes-list>vserver-info"`
 }
 
+const url = "https://10.44.58.21/servlets/netapp.servlets.admin.XMLrequest_filer"
+
 func main() {
-	const url = "https://10.44.58.21/servlets/netapp.servlets.admin.XMLrequest_filer"
+	filers := getFilers()
 
-	tplText, _ := ioutil.ReadFile("./query-vserver.xml")
-	result, err := fetchXML(url, string(tplText), &ReqParams{250, ""})
-	if err != nil {
-		log.Fatal(err)
+	for _, f := range filers {
+		log.Print(f)
 	}
-	log.Print(string(result))
-
-	parseVServer(result)
-
 	// http.Handle("/metrics", promhttp.Handler())
 	// http.ListenAndServe(":8080", nil)
 }
 
-func parseVServer(xmldata []byte) {
-	v := ResVServer{}
-	err := xml.Unmarshal(xmldata, &v)
+func getFilers() []VServer {
+	// post request
+	xmldata, err := fetchXML(url, "./query-vserver.xml", &ReqParams{250, ""})
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Print(v)
-
-	for _, s := range v.VServers {
-		log.Print(s)
+	// decode xmldata
+	v := ResVServer{}
+	err = xml.Unmarshal(xmldata, &v)
+	if err != nil {
+		log.Fatal(err)
 	}
+	return v.VServers
 }
 
-func fetchXML(url string, reqTemplate string, reqParams *ReqParams) ([]byte, error) {
-	var xmlbody bytes.Buffer
-
-	// parse template
-	tpl, err := template.New("vserver").Parse(reqTemplate)
+func fetchXML(url string, reqTemplateFile string, reqParams *ReqParams) ([]byte, error) {
+	// request template
+	tplText, _ := ioutil.ReadFile(reqTemplateFile)
+	tpl, err := template.New("vserver").Parse(string(tplText))
 	if err != nil {
 		return []byte{}, err
 	}
+	// fill parameters into template
+	var xmlbody bytes.Buffer
 	tpl.Execute(&xmlbody, reqParams)
-
-	// new request
+	// request payload
 	req, err := http.NewRequest("POST", url, &xmlbody)
 	if err != nil {
 		return []byte{}, err
 	}
 	req.SetBasicAuth("admin", "netapp123")
 	req.Header.Add("Content-Type", "text/xml")
-
 	// do request
 	client := &http.Client{Transport: &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -94,8 +91,7 @@ func fetchXML(url string, reqTemplate string, reqParams *ReqParams) ([]byte, err
 		return []byte{}, err
 	}
 	defer resp.Body.Close()
-
-	// parse result
+	// extract response data
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err
