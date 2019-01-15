@@ -55,6 +55,12 @@ type ListVolume struct {
 }
 
 const url = "https://10.44.58.21/servlets/netapp.servlets.admin.XMLrequest_filer"
+const username = "admin"
+const password = "netapp123"
+
+// const url = "https://10.46.100.160/servlets/netapp.servlets.admin.XMLrequest_filer"
+// const username = "mooapi"
+// const password = "Api4Testing!!"
 
 func main() {
 	filers := queryFilers()
@@ -78,6 +84,7 @@ func queryVolumeByFiler(filer string) []Volume {
 	v := ListVolume{}
 	err = xml.Unmarshal(xmldata, &v)
 	if err != nil {
+		log.Print("queryVolumeByFiler(): Fail to parse xml data")
 		log.Fatal(err)
 	}
 	return v.Volumes
@@ -93,6 +100,7 @@ func queryFilers() []VServer {
 	v := ListVServer{}
 	err = xml.Unmarshal(xmldata, &v)
 	if err != nil {
+		log.Print("queryFilers(): Fail to parse xml data")
 		log.Fatal(err)
 	}
 	return v.VServers
@@ -117,7 +125,7 @@ func fetchXML(url string, reqTemplateFile string, reqParams *ReqParams) ([]byte,
 	if err != nil {
 		return []byte{}, err
 	}
-	req.SetBasicAuth("admin", "netapp123")
+	req.SetBasicAuth(username, password)
 	req.Header.Add("Content-Type", "text/xml")
 	// do request
 	client := &http.Client{Transport: &http.Transport{
@@ -129,6 +137,9 @@ func fetchXML(url string, reqTemplateFile string, reqParams *ReqParams) ([]byte,
 	}
 	defer resp.Body.Close()
 	// extract response data
+	if resp.Status != "200 OK" {
+		log.Fatal(resp.Status)
+	}
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err

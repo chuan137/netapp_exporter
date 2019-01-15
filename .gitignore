@@ -1,5 +1,5 @@
 .DS_Store
 .vscode/launch.json
 debug/
-my-prom-exporter
 tmp
+filer_exporter
