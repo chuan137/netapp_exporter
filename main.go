@@ -7,15 +7,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/alecthomas/template"
-	// "github.com/prometheus/client_golang/prometheus"
-	// "github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
-
-/*
-	<netapp vfiler="abc" version="1.7" xmlns="http://www.netapp.com/filer/admin">
-*/
 
 // ReqParams is type of request parameters
 type ReqParams struct {
@@ -32,10 +29,10 @@ type VServer struct {
 
 // Volume is type for Volume
 type Volume struct {
-	Name          string `xml:"volume-id-attributes>name"`
-	Owner         string `xml:"volume-id-attributes>owning-vserver-name"`
-	SizeAvailable string `xml:"volume-space-attributes>size-available"`
-	SizeUsed      string `xml:"volume-space-attributes>size-used"`
+	Name          string  `xml:"volume-id-attributes>name"`
+	Owner         string  `xml:"volume-id-attributes>owning-vserver-name"`
+	SizeAvailable float64 `xml:"volume-space-attributes>size-available"`
+	SizeUsed      float64 `xml:"volume-space-attributes>size-used"`
 }
 
 // ListVServer is type for list of VServers
@@ -62,17 +59,48 @@ const password = "netapp123"
 // const username = "mooapi"
 // const password = "Api4Testing!!"
 
+var (
+	netappCapacity = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "netapp",
+			Subsystem: "capacity",
+			Name:      "SVM",
+			Help:      "netapp SVM capacity",
+		},
+		[]string{
+			"svm",
+			"volume",
+			"metric",
+		},
+	)
+)
+
 func main() {
+	prometheus.MustRegister(netappCapacity)
+
+	go func() {
+		for {
+			getData()
+			time.Sleep(15 * time.Minute)
+		}
+	}()
+
+	log.Print("ok")
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe("localhost:8080", nil)
+}
+
+func getData() {
 	filers := queryFilers()
-
 	for _, f := range filers {
-		log.Print(f)
 		vols := queryVolumeByFiler(f.Name)
-		log.Print(vols)
+		// log.Print(f)
+		// log.Print(vols)
+		for _, v := range vols {
+			netappCapacity.WithLabelValues(f.Name, v.Name, "available").Set(v.SizeAvailable)
+			netappCapacity.WithLabelValues(f.Name, v.Name, "used").Set(v.SizeUsed)
+		}
 	}
-
-	// http.Handle("/metrics", promhttp.Handler())
-	// http.ListenAndServe("localhost:8080", nil)
 }
 
 func queryVolumeByFiler(filer string) []Volume {
