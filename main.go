@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -47,8 +48,8 @@ type ListVServer struct {
 	VServers      []VServer `xml:"results>attributes-list>vserver-info"`
 }
 
-// ListVolume is type for list of Volumes
-type ListVolume struct {
+// VolumeList is type for list of Volumes
+type VolumeList struct {
 	XMLName       xml.Name `xml:"netapp"`
 	NetappVersion string   `xml:"version,attr"`
 	NumRec        int      `xml:"results>num-records"`
@@ -62,13 +63,7 @@ type filerConfig struct {
 	Password string `yaml:"password"`
 }
 
-const url = "https://10.44.58.21/servlets/netapp.servlets.admin.XMLrequest_filer"
-const username = "admin"
-const password = "netapp123"
-
-// const url = "https://10.46.100.160/servlets/netapp.servlets.admin.XMLrequest_filer"
-// const username = "mooapi"
-// const password = "Api4Testing!!"
+const urlTemplate = "https://%s/servlets/netapp.servlets.admin.XMLrequest_filer"
 
 var (
 	netappCapacity = prometheus.NewGaugeVec(
@@ -89,67 +84,78 @@ var (
 func main() {
 
 	filers := readFilerConfig("./netapp_filers.yaml")
-	log.Print(filers)
 
 	prometheus.MustRegister(netappCapacity)
 
 	go func() {
 		for {
-			getData()
+			for _, f := range filers {
+				getData(&f)
+			}
 			time.Sleep(60 * time.Second)
 		}
 	}()
 
-	log.Print("ok")
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe("localhost:9108", nil)
+	http.ListenAndServe(":9108", nil)
 }
 
-func getData() {
-	log.Print("getData()")
-	filers := queryFilers()
-	for _, f := range filers {
-		vols := queryVolumeByFiler(f.Name)
-		// log.Print(f)
+func getData(fc *filerConfig) {
+	log.Print("[Info] getData() ", fc.Name)
+
+	svms := querySvmByFiler(fc)
+
+	for _, vs := range svms {
+		vols := queryVolumeByFiler(fc, &vs)
+		// log.Print(s)
 		// log.Print(vols)
 		for _, v := range vols {
-			netappCapacity.WithLabelValues(f.Name, v.Name, "total").Set(v.SizeTotal)
-			netappCapacity.WithLabelValues(f.Name, v.Name, "available").Set(v.SizeAvailable)
-			netappCapacity.WithLabelValues(f.Name, v.Name, "used").Set(v.SizeUsed)
-			netappCapacity.WithLabelValues(f.Name, v.Name, "percentage_used").Set(v.PercentageSizeUsed)
+			netappCapacity.WithLabelValues(vs.Name, v.Name, "total").Set(v.SizeTotal)
+			netappCapacity.WithLabelValues(vs.Name, v.Name, "available").Set(v.SizeAvailable)
+			netappCapacity.WithLabelValues(vs.Name, v.Name, "used").Set(v.SizeUsed)
+			netappCapacity.WithLabelValues(vs.Name, v.Name, "percentage_used").Set(v.PercentageSizeUsed)
 		}
 	}
 }
 
-func queryVolumeByFiler(filer string) []Volume {
+func queryVolumeByFiler(fc *filerConfig, vs *VServer) (v []Volume) {
+	url := fmt.Sprintf(urlTemplate, fc.IP)
+
 	// post request
-	xmldata, err := fetchXML(url, "./query-volume.xml", &ReqParams{250, filer})
+	xmldata, err := fetchXML(url, fc.Username, fc.Password, "./query_volume.xml", &ReqParams{250, vs.Name})
 	if err != nil {
-		log.Fatal("POST query with ./query-volume.xml:", err)
+		log.Print("[Warning] ", err)
+		return
 	}
-	v := ListVolume{}
-	err = xml.Unmarshal(xmldata, &v)
+
+	var l VolumeList
+	err = xml.Unmarshal(xmldata, &l)
 	if err != nil {
 		log.Print("queryVolumeByFiler(): Fail to parse xml data")
 		log.Fatal(err)
 	}
-	return v.Volumes
+
+	return l.Volumes
 }
 
-func queryFilers() []VServer {
+func querySvmByFiler(fc *filerConfig) (v []VServer) {
+	url := fmt.Sprintf(urlTemplate, fc.IP)
+
 	// post request
-	xmldata, err := fetchXML(url, "./query-vserver.xml", &ReqParams{250, ""})
+	xmldata, err := fetchXML(url, fc.Username, fc.Password, "./query_vserver.xml", &ReqParams{250, ""})
 	if err != nil {
-		log.Fatal("POST query with ./query-vserver.xml:", err)
+		log.Print("[Warning] ", err)
+		return
 	}
+
 	// decode xmldata
-	v := ListVServer{}
-	err = xml.Unmarshal(xmldata, &v)
+	var l ListVServer
+	err = xml.Unmarshal(xmldata, &l)
 	if err != nil {
 		log.Print("queryFilers(): Fail to parse xml data")
 		log.Fatal(err)
 	}
-	return v.VServers
+	return l.VServers
 }
 
 func buildFromTemplate(templateFile string, params *ReqParams) *bytes.Buffer {
@@ -166,7 +172,7 @@ func buildFromTemplate(templateFile string, params *ReqParams) *bytes.Buffer {
 	return &res
 }
 
-func fetchXML(url string, reqTemplateFile string, reqParams *ReqParams) ([]byte, error) {
+func fetchXML(url, username, password string, reqTemplateFile string, reqParams *ReqParams) ([]byte, error) {
 	// fill parameters into template
 	xmlbody := buildFromTemplate(reqTemplateFile, reqParams)
 	// request payload
