@@ -1,0 +1,10 @@
+filers:
+  - name: xxx
+    ip: 10.44.58.21
+    username: admin
+    password: netapp123
+
+  - name: yyy
+    ip: 10.46.100.160
+    username: mooapi
+    password: Api4Testing!!

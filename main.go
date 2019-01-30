@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/alecthomas/template"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -78,6 +80,10 @@ var (
 )
 
 func main() {
+
+	var c filerConfig
+	c.readFilerConfig("./netapp_filers.yaml")
+
 	prometheus.MustRegister(netappCapacity)
 
 	go func() {
@@ -89,7 +95,7 @@ func main() {
 
 	log.Print("ok")
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":9108", nil)
+	http.ListenAndServe("localhost:9108", nil)
 }
 
 func getData() {
@@ -181,4 +187,27 @@ func fetchXML(url string, reqTemplateFile string, reqParams *ReqParams) ([]byte,
 		return []byte{}, err
 	}
 	return data, nil
+}
+
+type filerConfig struct {
+	Filer []struct {
+		Name string `yaml:"name"`
+		IP   string `yaml:"ip"`
+		User string `yaml:"username"`
+		Pass string `yaml:"password"`
+	} `yaml:"filers"`
+}
+
+func (c *filerConfig) readFilerConfig(fileName string) *filerConfig {
+
+	yamlFile, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		log.Fatal("[ERROR] ", err)
+	}
+	err = yaml.Unmarshal(yamlFile, c)
+	if err != nil {
+		log.Fatal("[ERROR] ", err)
+	}
+
+	return c
 }

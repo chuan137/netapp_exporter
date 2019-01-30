@@ -9,3 +9,6 @@ build:
 
 push:
 	docker push $(IMAGE):$(VERSION)
+
+test:
+	GOOS=darwin GOARCH=$(ARCH) go build
