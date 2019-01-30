@@ -29,10 +29,12 @@ type VServer struct {
 
 // Volume is type for Volume
 type Volume struct {
-	Name          string  `xml:"volume-id-attributes>name"`
-	Owner         string  `xml:"volume-id-attributes>owning-vserver-name"`
-	SizeAvailable float64 `xml:"volume-space-attributes>size-available"`
-	SizeUsed      float64 `xml:"volume-space-attributes>size-used"`
+	Name               string  `xml:"volume-id-attributes>name"`
+	Owner              string  `xml:"volume-id-attributes>owning-vserver-name"`
+	SizeTotal          float64 `xml:"volume-space-attributes>size-total"`
+	SizeAvailable      float64 `xml:"volume-space-attributes>size-available"`
+	SizeUsed           float64 `xml:"volume-space-attributes>size-used"`
+	PercentageSizeUsed float64 `xml:"volume-space-attributes>percentage-size-used"`
 }
 
 // ListVServer is type for list of VServers
@@ -64,7 +66,7 @@ var (
 		prometheus.GaugeOpts{
 			Namespace: "netapp",
 			Subsystem: "capacity",
-			Name:      "SVM",
+			Name:      "svm",
 			Help:      "netapp SVM capacity",
 		},
 		[]string{
@@ -81,24 +83,27 @@ func main() {
 	go func() {
 		for {
 			getData()
-			time.Sleep(15 * time.Minute)
+			time.Sleep(60 * time.Second)
 		}
 	}()
 
 	log.Print("ok")
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe("localhost:8080", nil)
+	http.ListenAndServe(":9108", nil)
 }
 
 func getData() {
+	log.Print("getData()")
 	filers := queryFilers()
 	for _, f := range filers {
 		vols := queryVolumeByFiler(f.Name)
 		// log.Print(f)
 		// log.Print(vols)
 		for _, v := range vols {
+			netappCapacity.WithLabelValues(f.Name, v.Name, "total").Set(v.SizeTotal)
 			netappCapacity.WithLabelValues(f.Name, v.Name, "available").Set(v.SizeAvailable)
 			netappCapacity.WithLabelValues(f.Name, v.Name, "used").Set(v.SizeUsed)
+			netappCapacity.WithLabelValues(f.Name, v.Name, "percentage_used").Set(v.PercentageSizeUsed)
 		}
 	}
 }
@@ -107,7 +112,7 @@ func queryVolumeByFiler(filer string) []Volume {
 	// post request
 	xmldata, err := fetchXML(url, "./query-volume.xml", &ReqParams{250, filer})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("POST query with ./query-volume.xml:", err)
 	}
 	v := ListVolume{}
 	err = xml.Unmarshal(xmldata, &v)
@@ -122,7 +127,7 @@ func queryFilers() []VServer {
 	// post request
 	xmldata, err := fetchXML(url, "./query-vserver.xml", &ReqParams{250, ""})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("POST query with ./query-vserver.xml:", err)
 	}
 	// decode xmldata
 	v := ListVServer{}
@@ -136,10 +141,13 @@ func queryFilers() []VServer {
 
 func buildFromTemplate(templateFile string, params *ReqParams) *bytes.Buffer {
 	var res bytes.Buffer
-	tplText, _ := ioutil.ReadFile(templateFile)
+	tplText, err := ioutil.ReadFile(templateFile)
+	if err != nil {
+		log.Fatal("buildFromTemplate(): ", err)
+	}
 	tpl, err := template.New("vserver").Parse(string(tplText))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("buildFromTemplate(): ", err)
 	}
 	tpl.Execute(&res, params)
 	return &res

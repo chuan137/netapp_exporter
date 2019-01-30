@@ -2,4 +2,4 @@
 .vscode/launch.json
 debug/
 tmp
-filer_exporter
+netapp_exporter
