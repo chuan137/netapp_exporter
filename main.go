@@ -55,13 +55,11 @@ type ListVolume struct {
 	Volumes       []Volume `xml:"results>attributes-list>volume-attributes"`
 }
 
-type filerConfig []struct {
-	Name string `yaml:"name"`
-	IP   string `yaml:"ip"`
-	User string `yaml:"username"`
-	Pass string `yaml:"password"`
-	// Filer []struct {
-	// } `yaml:"filers"`
+type filerConfig struct {
+	Name     string `yaml:"name"`
+	IP       string `yaml:"ip"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 const url = "https://10.44.58.21/servlets/netapp.servlets.admin.XMLrequest_filer"
@@ -90,8 +88,8 @@ var (
 
 func main() {
 
-	var c filerConfig
-	c.readFilerConfig("./netapp_filers.yaml")
+	filers := readFilerConfig("./netapp_filers.yaml")
+	log.Print(filers)
 
 	prometheus.MustRegister(netappCapacity)
 
@@ -198,16 +196,16 @@ func fetchXML(url string, reqTemplateFile string, reqParams *ReqParams) ([]byte,
 	return data, nil
 }
 
-func (c *filerConfig) readFilerConfig(fileName string) *filerConfig {
+func readFilerConfig(fileName string) (c []filerConfig) {
 
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
 	}
-	err = yaml.Unmarshal(yamlFile, c)
+	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
 	}
 
-	return c
+	return
 }
