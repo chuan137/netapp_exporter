@@ -55,6 +55,15 @@ type ListVolume struct {
 	Volumes       []Volume `xml:"results>attributes-list>volume-attributes"`
 }
 
+type filerConfig []struct {
+	Name string `yaml:"name"`
+	IP   string `yaml:"ip"`
+	User string `yaml:"username"`
+	Pass string `yaml:"password"`
+	// Filer []struct {
+	// } `yaml:"filers"`
+}
+
 const url = "https://10.44.58.21/servlets/netapp.servlets.admin.XMLrequest_filer"
 const username = "admin"
 const password = "netapp123"
@@ -187,15 +196,6 @@ func fetchXML(url string, reqTemplateFile string, reqParams *ReqParams) ([]byte,
 		return []byte{}, err
 	}
 	return data, nil
-}
-
-type filerConfig struct {
-	Filer []struct {
-		Name string `yaml:"name"`
-		IP   string `yaml:"ip"`
-		User string `yaml:"username"`
-		Pass string `yaml:"password"`
-	} `yaml:"filers"`
 }
 
 func (c *filerConfig) readFilerConfig(fileName string) *filerConfig {
