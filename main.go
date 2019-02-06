@@ -74,6 +74,7 @@ var (
 			Help:      "netapp SVM capacity",
 		},
 		[]string{
+			"filer",
 			"svm",
 			"volume",
 			"metric",
@@ -110,10 +111,10 @@ func getData(fc *filerConfig) {
 		// log.Print(s)
 		// log.Print(vols)
 		for _, v := range vols {
-			netappCapacity.WithLabelValues(vs.Name, v.Name, "total").Set(v.SizeTotal)
-			netappCapacity.WithLabelValues(vs.Name, v.Name, "available").Set(v.SizeAvailable)
-			netappCapacity.WithLabelValues(vs.Name, v.Name, "used").Set(v.SizeUsed)
-			netappCapacity.WithLabelValues(vs.Name, v.Name, "percentage_used").Set(v.PercentageSizeUsed)
+			netappCapacity.WithLabelValues(fc.Name, vs.Name, v.Name, "total").Set(v.SizeTotal)
+			netappCapacity.WithLabelValues(fc.Name, vs.Name, v.Name, "available").Set(v.SizeAvailable)
+			netappCapacity.WithLabelValues(fc.Name, vs.Name, v.Name, "used").Set(v.SizeUsed)
+			netappCapacity.WithLabelValues(fc.Name, vs.Name, v.Name, "percentage_used").Set(v.PercentageSizeUsed)
 		}
 	}
 }
