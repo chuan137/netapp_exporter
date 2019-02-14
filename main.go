@@ -19,7 +19,8 @@ import (
 
 // Parameter
 var (
-	waitTime = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int()
+	waitTime      = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int()
+	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
 )
 
 // ReqParams is type of request parameters
@@ -45,8 +46,8 @@ type Volume struct {
 	PercentageSizeUsed float64 `xml:"volume-space-attributes>percentage-size-used"`
 }
 
-// ListVServer is type for list of VServers
-type ListVServer struct {
+// VServerList is type for list of VServers
+type VServerList struct {
 	XMLName       xml.Name  `xml:"netapp"`
 	NetappVersion string    `xml:"version,attr"`
 	NumRec        int       `xml:"results>num-records"`
@@ -88,6 +89,7 @@ var (
 )
 
 func main() {
+	kingpin.Parse()
 
 	filers := readFilerConfig("./netapp_filers.yaml")
 
@@ -103,7 +105,7 @@ func main() {
 	}()
 
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":9108", nil)
+	http.ListenAndServe(*listenAddress+":9108", nil)
 }
 
 func getData(fc *filerConfig) {
@@ -155,7 +157,7 @@ func querySvmByFiler(fc *filerConfig) (v []VServer) {
 	}
 
 	// decode xmldata
-	var l ListVServer
+	var l VServerList
 	err = xml.Unmarshal(xmldata, &l)
 	if err != nil {
 		log.Print("queryFilers(): Fail to parse xml data")
