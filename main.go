@@ -10,11 +10,16 @@ import (
 	"net/http"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/alecthomas/template"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v2"
+)
+
+// Parameter
+var (
+	waitTime = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int()
 )
 
 // ReqParams is type of request parameters
@@ -93,7 +98,7 @@ func main() {
 			for _, f := range filers {
 				getData(&f)
 			}
-			time.Sleep(60 * time.Second)
+			time.Sleep(time.Duration(*waitTime) * time.Second)
 		}
 	}()
 
