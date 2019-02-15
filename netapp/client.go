@@ -1,19 +1,23 @@
 package netapp
 
 import (
-	"bytes"
 	"crypto/tls"
+	"io"
 	"net/http"
 )
 
 type Client struct {
-	client   *http.Client
+	client *http.Client
+	config *ClientConfig
+}
+
+type ClientConfig struct {
 	url      string
 	username string
 	password string
 }
 
-func NewClient() (c *Client) {
+func NewClient(cfg *ClientConfig) (c *Client) {
 	c.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -22,13 +26,13 @@ func NewClient() (c *Client) {
 	return c
 }
 
-func (c *Client) NewRequest(xmlbody *bytes.Buffer) (*http.Request, error) {
-	r, e := http.NewRequest("POST", c.url, xmlbody)
+func (c *Client) NewRequest(xmlbody io.Reader) (*http.Request, error) {
+	r, e := http.NewRequest("POST", c.config.url, xmlbody)
 	if e != nil {
 		return nil, e
 	}
 
-	r.SetBasicAuth(c.username, c.password)
+	r.SetBasicAuth(c.config.username, c.config.password)
 	r.Header.Add("Content-Type", "text/xml")
 
 	return r, nil

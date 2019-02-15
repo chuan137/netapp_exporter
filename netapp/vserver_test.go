@@ -13,28 +13,35 @@ var (
 	url      string
 	username string
 	password string
+	base     Base
 )
 
 func init() {
 	url = os.Getenv("NETAPP_URL")
 	username = os.Getenv("NETAPP_USERNAME")
 	password = os.Getenv("NETAPP_PASSWORD")
+	base = Base{Version: "1.7"}
 }
 
-func TestVserver(t *testing.T) {
-	// v := &Vserver{Base: Base{Version: "1.7"}}
-	v := &Vserver{}
-	v.DesiredAttribtues = &VserverInfo{VserverName: "1"}
+func TestVserverDesiredAttributes(t *testing.T) {
+	type attr struct {
+		VserverName
+		UUID
+	}
+
+	// set attr to the DesiredAttributes field
+	v := &Vserver{base, attr{}}
 
 	r, e := xml.MarshalIndent(v, "", "\t")
 	if e != nil {
 		log.Fatal(e)
 	}
 
-	exp := `<netapp>
+	exp := `<netapp version="1.7">
 	<desired-attributes>
 		<vserver-info>
-			<vserver-name>1</vserver-name>
+			<vserver-name></vserver-name>
+			<uuid></uuid>
 		</vserver-info>
 	</desired-attributes>
 </netapp>`
@@ -42,9 +49,8 @@ func TestVserver(t *testing.T) {
 }
 
 func TestVserverGet(t *testing.T) {
-	c := &Client{url: url, username: username, password: password}
-	b := &Base{Client: *c}
-	v := &Vserver{Base: *b}
+	v := &Vserver{Base: base}
+	v.Base.Client = &Client{config: &ClientConfig{url, username, password}}
 
-	assert.Equal(t, v.Base.Client.url, "abc")
+	assert.Equal(t, v.Base.Client.config.url, "abc")
 }
