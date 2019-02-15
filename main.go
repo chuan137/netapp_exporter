@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"crypto/tls"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alecthomas/template"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -130,7 +127,8 @@ func queryVolumeByFiler(fc *filerConfig, vs *VServer) (v []Volume) {
 	url := fmt.Sprintf(urlTemplate, fc.IP)
 
 	// post request
-	xmldata, err := fetchXML(url, fc.Username, fc.Password, "./query_volume.xml", &ReqParams{250, vs.Name})
+	xmlbody := makeRequestFromTemplateFile("./templates/query_volume.xml", &ReqParams{250, vs.Name})
+	xmldata, err := fetchXML(url, fc.Username, fc.Password, xmlbody)
 	if err != nil {
 		log.Print("[Warning] ", err)
 		return
@@ -150,7 +148,8 @@ func querySvmByFiler(fc *filerConfig) (v []VServer) {
 	url := fmt.Sprintf(urlTemplate, fc.IP)
 
 	// post request
-	xmldata, err := fetchXML(url, fc.Username, fc.Password, "./query_vserver.xml", &ReqParams{250, ""})
+	xmlbody := makeRequestFromTemplateFile("./templates/query_vserver.xml", &ReqParams{250, ""})
+	xmldata, err := fetchXML(url, fc.Username, fc.Password, xmlbody)
 	if err != nil {
 		log.Print("[Warning] ", err)
 		return
@@ -166,56 +165,12 @@ func querySvmByFiler(fc *filerConfig) (v []VServer) {
 	return l.VServers
 }
 
-func buildFromTemplate(templateFile string, params *ReqParams) *bytes.Buffer {
-	var res bytes.Buffer
-	tplText, err := ioutil.ReadFile(templateFile)
-	if err != nil {
-		log.Fatal("buildFromTemplate(): ", err)
-	}
-	tpl, err := template.New("vserver").Parse(string(tplText))
-	if err != nil {
-		log.Fatal("buildFromTemplate(): ", err)
-	}
-	tpl.Execute(&res, params)
-	return &res
-}
-
-func fetchXML(url, username, password string, reqTemplateFile string, reqParams *ReqParams) ([]byte, error) {
-	// fill parameters into template
-	xmlbody := buildFromTemplate(reqTemplateFile, reqParams)
-	// request payload
-	req, err := http.NewRequest("POST", url, xmlbody)
-	if err != nil {
-		return []byte{}, err
-	}
-	req.SetBasicAuth(username, password)
-	req.Header.Add("Content-Type", "text/xml")
-	// do request
-	client := &http.Client{Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}}
-	resp, err := client.Do(req)
-	if err != nil {
-		return []byte{}, err
-	}
-	defer resp.Body.Close()
-	// extract response data
-	if resp.Status != "200 OK" {
-		log.Fatal(resp.Status)
-	}
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return []byte{}, err
-	}
-	return data, nil
-}
-
 func readFilerConfig(fileName string) (c []filerConfig) {
-
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
 	}
+
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
