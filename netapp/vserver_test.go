@@ -19,7 +19,6 @@ func init() {
 	url = os.Getenv("NETAPP_URL")
 	username = os.Getenv("NETAPP_USERNAME")
 	password = os.Getenv("NETAPP_PASSWORD")
-
 }
 
 func TestVserver(t *testing.T) {
@@ -47,5 +46,5 @@ func TestVserverGet(t *testing.T) {
 	b := &Base{Client: *c}
 	v := &Vserver{Base: *b}
 
-	v.get()
+	assert.Equal(t, v.Base.Client.url, "abc")
 }
