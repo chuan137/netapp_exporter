@@ -39,10 +39,6 @@ func NewVserver(attr interface{}) *Vserver {
 	v.Params.DesiredAttribtues = attr
 	return v
 }
-<<<<<<< HEAD
-=======
-
-// start implementing
 
 func (v *Vserver) List() {
 	v.Params.XMLName.Local = "vserver-get-iter"
@@ -50,4 +46,3 @@ func (v *Vserver) List() {
 	result := v.Base.Client.do(&v)
 	log.Print(result)
 }
->>>>>>> 0cfd84c... ... implement function Vserver.List
