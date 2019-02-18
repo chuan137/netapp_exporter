@@ -1,6 +1,9 @@
 package netapp
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"log"
+)
 
 type Vserver struct {
 	Base
@@ -36,3 +39,15 @@ func NewVserver(attr interface{}) *Vserver {
 	v.Params.DesiredAttribtues = attr
 	return v
 }
+<<<<<<< HEAD
+=======
+
+// start implementing
+
+func (v *Vserver) List() {
+	v.Params.XMLName.Local = "vserver-get-iter"
+
+	result := v.Base.Client.do(&v)
+	log.Print(result)
+}
+>>>>>>> 0cfd84c... ... implement function Vserver.List
