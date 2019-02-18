@@ -20,17 +20,21 @@ func init() {
 	url = os.Getenv("NETAPP_URL")
 	username = os.Getenv("NETAPP_USERNAME")
 	password = os.Getenv("NETAPP_PASSWORD")
-	base = Base{Version: "1.7"}
 }
 
-func TestVserverDesiredAttributes(t *testing.T) {
+func TestNewVserver(t *testing.T) {
+	type query struct {
+		VserverType
+	}
 	type attr struct {
 		VserverName
 		UUID
 	}
 
 	// set attr to the DesiredAttributes field
-	v := &Vserver{base, attr{}}
+	v := NewVserver(attr{})
+	v.Params.XMLName.Local = "vserver-get-iter"
+	v.Params.Query = query{VserverType{"cluster | data"}}
 
 	r, e := xml.MarshalIndent(v, "", "\t")
 	if e != nil {
@@ -38,12 +42,19 @@ func TestVserverDesiredAttributes(t *testing.T) {
 	}
 
 	exp := `<netapp version="1.7">
-	<desired-attributes>
-		<vserver-info>
-			<vserver-name></vserver-name>
-			<uuid></uuid>
-		</vserver-info>
-	</desired-attributes>
+	<vserver-get-iter>
+		<query>
+			<vserver-info>
+				<vserver-type>cluster | data</vserver-type>
+			</vserver-info>
+		</query>
+		<desired-attributes>
+			<vserver-info>
+				<vserver-name></vserver-name>
+				<uuid></uuid>
+			</vserver-info>
+		</desired-attributes>
+	</vserver-get-iter>
 </netapp>`
 	assert.Equal(t, exp, string(r))
 }
